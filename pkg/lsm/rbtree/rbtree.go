@@ -88,9 +88,25 @@ func newRBTree() *rbTree {
 	}
 }
 
+func (t *rbTree) Has(key string) (bool, int64) {
+	ret, ok := t.GetEntry(Entry{Key: key})
+	return ok, int64(len(ret.Value))
+}
+
 func (t *rbTree) Put(key string, val []byte) ([]byte, bool) {
 	ret, ok := t.PutEntry(Entry{Key: key, Value: val})
 	return ret.Value, ok
+}
+
+func (t *rbTree) Get(key string) ([]byte, bool) {
+	ret, ok := t.GetEntry(Entry{Key: key})
+	return ret.Value, ok
+}
+
+func (t *rbTree) Del(key string) ([]byte, bool) {
+	siz := t.count
+	ret := t.DelEntry(Entry{Key: key})
+	return ret.Value, siz == t.count+1
 }
 
 func (t *rbTree) PutEntry(entry Entry) (Entry, bool) {
@@ -110,16 +126,6 @@ func (t *rbTree) PutEntry(entry Entry) (Entry, bool) {
 	return ret.entry, ok
 }
 
-func (t *rbTree) Has(key string) (bool, int64) {
-	ret, ok := t.GetEntry(Entry{Key: key})
-	return ok, int64(len(ret.Value))
-}
-
-func (t *rbTree) Get(key string) ([]byte, bool) {
-	ret, ok := t.GetEntry(Entry{Key: key})
-	return ret.Value, ok
-}
-
 func (t *rbTree) GetEntry(entry Entry) (Entry, bool) {
 	if isempty(entry) {
 		return empty, false
@@ -132,12 +138,6 @@ func (t *rbTree) GetEntry(entry Entry) (Entry, bool) {
 		entry:  entry,
 	})
 	return ret.entry, !isempty(ret.entry)
-}
-
-func (t *rbTree) Del(key string) ([]byte, bool) {
-	siz := t.count
-	ret := t.DelEntry(Entry{Key: key})
-	return ret.Value, siz == t.count+1
 }
 
 func (t *rbTree) DelEntry(entry Entry) Entry {
