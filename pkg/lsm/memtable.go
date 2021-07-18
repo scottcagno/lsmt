@@ -20,7 +20,7 @@ type Memtable struct {
 func NewMemtable(path string) (*Memtable, error) {
 	l, err := OpenLogFile(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("[NewMemtable] calling OpenLogFile: %v", err)
 	}
 	m := &Memtable{
 		data: rbtree.NewRBTree(),
@@ -59,7 +59,7 @@ func (m *Memtable) Put(key string, val []byte) error {
 	// write put entry to the logile
 	err := m.aol.WritePut(key, val)
 	if err != nil {
-		return err
+		return fmt.Errorf("[Memtable.Put] calling WritePut: %v", err)
 	}
 
 	// add entry to the memtable
@@ -93,7 +93,7 @@ func (m *Memtable) Del(key string) error {
 	// write del entry to the logfile
 	err := m.aol.WriteDel(key)
 	if err != nil {
-		return err
+		return fmt.Errorf("[Memtable.Del] calling WriteDel: %v", err)
 	}
 
 	// remove entry from the memtable
@@ -128,7 +128,7 @@ func (m *Memtable) Flush() error {
 	filename := fmt.Sprintf("dat-%d.sst", time.Now().Unix())
 	fd, err := OpenOrCreate(filename)
 	if err != nil {
-		return err
+		return fmt.Errorf("[Memtable.Flush] calling OpenOrCreate: %v", err)
 	}
 	defer fd.Close()
 
@@ -142,12 +142,12 @@ func (m *Memtable) Flush() error {
 		return true
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("[Memtable.Flush] scanning front (i think): %v", err)
 	}
 	// make sure file is flushed to disk
 	err = fd.Sync()
 	if err != nil {
-		return err
+		return fmt.Errorf("[Memtable.Flush] calling fd.Sync: %v", err)
 	}
 
 	// reset the memtable data
@@ -161,17 +161,17 @@ func (m *Memtable) Flush() error {
 	// we don't need this one anymore
 	err = m.aol.Close()
 	if err != nil {
-		return err
+		return fmt.Errorf("[Memtable.Flush] calling fd.Close: %v", err)
 	}
 	err = os.Remove(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("[Memtable.Flush] calling os.Remove: %v", err)
 	}
 
 	// open a fresh log file
 	l, err := OpenLogFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("[Memtable.Flush] calling OpenLogFile: %v", err)
 	}
 	m.aol = l
 
@@ -185,7 +185,7 @@ func (m *Memtable) Close() error {
 	defer m.mu.Unlock()
 	err := m.aol.Close()
 	if err != nil {
-		return err
+		return fmt.Errorf("[Memtable.Close] calling fd.Close: %v", err)
 	}
 	m.data.Close()
 	return nil
