@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/scottcagno/lsmt/pkg/lsm/rbtree"
 	"io"
+	"log"
 	"os"
 	"sync"
 	"time"
@@ -17,7 +18,7 @@ type Memtable struct {
 	size      int64          // size in bytes (used to check if threshold has been met)
 }
 
-func NewMemtable(path string) (*Memtable, error) {
+func NewMemtable(path string, dynamicLoad bool) (*Memtable, error) {
 	l, err := OpenLogFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("[NewMemtable] calling OpenLogFile: %v", err)
@@ -27,29 +28,31 @@ func NewMemtable(path string) (*Memtable, error) {
 		aol:  l,
 		size: l.size,
 	}
-	m.load()
+	if dynamicLoad {
+		m.Load()
+	}
 	return m, nil
 }
 
-func (m *Memtable) load() {
+func (m *Memtable) Load() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	var err error
-	var entries []entry
+	log.Printf("Loading memtable data from AOF/WAL (%s)\n", m.aol.file.Name())
 	if m.size > 0 {
-		for err != io.EOF {
+		for {
 			var e entry
-			err = m.aol.ReadEntry(&e)
+			err := m.aol.ReadEntry(&e)
+			if err == io.EOF {
+				break
+			}
 			switch e.typ {
 			case typeErr, typeDel:
 				continue
 			case typeAdd, typePut:
-				entries = append(entries, e)
-				//m.data.Put(e.key, e.val)
+				m.data.Put(e.key, []byte(e.val))
 			}
 		}
 	}
-	fmt.Printf(">> entries: %+v\n", entries)
 }
 
 func (m *Memtable) Put(key string, val []byte) error {
@@ -72,6 +75,15 @@ func (m *Memtable) Put(key string, val []byte) error {
 	}
 
 	return nil
+}
+
+func (m *Memtable) Has(key string) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	// check the memtable
+	ok, _ := m.data.Has(key)
+	return ok
 }
 
 func (m *Memtable) Get(key string) ([]byte, error) {

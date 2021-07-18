@@ -4,16 +4,24 @@ import (
 	"github.com/scottcagno/lsmt/pkg/lsm"
 	"log"
 	"os"
+	"time"
 )
 
 func main() {
 
-	mem, err := lsm.NewMemtable("cmd/memtable/log/memtable.log")
+	mem, err := lsm.NewMemtable("cmd/memtable/log/memtable.log", false)
 	errCheck(err)
 	defer mem.Close()
 
-	//testPut(mem)
-	testGet(mem)
+	testHas(mem)
+
+	time.Sleep(3 * time.Second)
+
+	mem.Load()
+
+	time.Sleep(3 * time.Second)
+
+	testHas(mem)
 
 	err = mem.Close()
 	errCheck(err)
@@ -42,6 +50,23 @@ var (
 	val8 = []byte("this is my eighth test value, yeah #8")
 	val9 = []byte("this is my ninth test value, yeah #9")
 )
+
+func testHas(mem *lsm.Memtable) {
+
+	log.Printf("has %q -> %v\n", "foo", mem.Has("foo"))
+	log.Printf("has %q -> %v\n", "bar", mem.Has("bar"))
+
+	log.Printf("has %q -> %v\n", key0, mem.Has(key0))
+	log.Printf("has %q -> %v\n", key1, mem.Has(key1))
+	log.Printf("has %q -> %v\n", key2, mem.Has(key2))
+	log.Printf("has %q -> %v\n", key3, mem.Has(key3))
+	log.Printf("has %q -> %v\n", key4, mem.Has(key4))
+	log.Printf("has %q -> %v\n", key5, mem.Has(key5))
+	log.Printf("has %q -> %v\n", key6, mem.Has(key6))
+	log.Printf("has %q -> %v\n", key7, mem.Has(key7))
+	log.Printf("has %q -> %v\n", key8, mem.Has(key8))
+	log.Printf("has %q -> %v\n", key9, mem.Has(key9))
+}
 
 func testPut(mem *lsm.Memtable) {
 	var err error

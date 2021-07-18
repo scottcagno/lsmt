@@ -33,6 +33,9 @@ func OpenLogFile(path string) (*LogFile, error) {
 func (l *LogFile) read() (byte, string, []byte, error) {
 	typ, key, val, err := readEntry(l.file)
 	if err != nil {
+		if err == io.EOF {
+			return typ, key, val, err
+		}
 		return typ, key, val, fmt.Errorf("[LogFile.read] calling readEntry: %v", err)
 	}
 	return typ, key, val, err
@@ -81,6 +84,9 @@ func (l *LogFile) WriteEntry(e *entry) error {
 func (l *LogFile) ReadEntry(e *entry) error {
 	typ, key, val, err := l.read()
 	if err != nil {
+		if err == io.EOF {
+			return err
+		}
 		return fmt.Errorf("[LogFile.ReadEntry] calling read: %v", err)
 	}
 	e.typ = typ

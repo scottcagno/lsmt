@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -29,12 +30,15 @@ func readEntry(r io.Reader) (byte, string, []byte, error) {
 
 	_, err := r.Read(header)
 	if err != nil {
+		if err == io.EOF {
+			return typeErr, "", nil, err
+		}
 		return typeErr, "", nil, fmt.Errorf("[readEntry] reading header: %v", err)
 	}
 
 	typ := header[0]
-	keylen := binary.LittleEndian.Uint32(header[1:4])
-	vallen := binary.LittleEndian.Uint64(header[4:12])
+	keylen := binary.LittleEndian.Uint32(header[1:5])
+	vallen := binary.LittleEndian.Uint64(header[5:13])
 
 	data := make([]byte, uint64(keylen)+vallen)
 	_, err = r.Read(data)
@@ -68,6 +72,9 @@ func writeEntry(w io.Writer, typ byte, key string, val []byte) error {
 	if err != nil {
 		return fmt.Errorf("[writeEntry] writing value length: %v", err)
 	}
+
+	log.Printf("keylen: len=%d, val=%v\n", len(keylen), keylen)
+	log.Printf("vallen: len=%d, val=%v\n", len(vallen), vallen)
 
 	// write key data
 	_, err = w.Write([]byte(key))
