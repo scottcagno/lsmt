@@ -3,6 +3,7 @@ package rbtree
 import (
 	"fmt"
 	"github.com/scottcagno/leviathan/pkg/util"
+	"log"
 	"testing"
 )
 
@@ -139,17 +140,77 @@ func TestRbTree_Max(t *testing.T) {
 
 // signature: ScanFront(iter Iterator)
 func TestRbTree_ScanFront(t *testing.T) {
-	// TODO: implement...
+	tree := NewRBTree()
+	for i := 0; i < n*thousand; i++ {
+		tree.Put(makeKey(i), makeVal(i))
+	}
+	util.AssertLen(t, n*thousand, tree.Len())
+
+	printInfo := true
+
+	// do scan front
+	tree.ScanFront(func(e Entry) bool {
+		if e.Key == "" {
+			t.Errorf("scan front, issue with key: %v", e.Key)
+			return false
+		}
+		if printInfo {
+			log.Printf("key: %s\n", e.Key)
+		}
+		return true
+	})
+
+	tree.Close()
 }
 
 // signature: ScanBack(iter Iterator)
 func TestRbTree_ScanBack(t *testing.T) {
-	// TODO: implement...
+	tree := NewRBTree()
+	for i := 0; i < n*thousand; i++ {
+		tree.Put(makeKey(i), makeVal(i))
+	}
+	util.AssertLen(t, n*thousand, tree.Len())
+
+	printInfo := true
+
+	tree.ScanBack(func(e Entry) bool {
+		if e.Key == "" {
+			t.Errorf("scan back, issue with key: %v", e.Key)
+			return false
+		}
+		if printInfo {
+			log.Printf("key: %s\n", e.Key)
+		}
+		return true
+	})
+
+	tree.Close()
 }
 
 // signature: ScanRange(start Entry, end Entry, iter Iterator)
 func TestRbTree_ScanRange(t *testing.T) {
-	// TODO: implement...
+	tree := NewRBTree()
+	for i := 0; i < n*thousand; i++ {
+		tree.Put(makeKey(i), makeVal(i))
+	}
+	util.AssertLen(t, n*thousand, tree.Len())
+
+	printInfo := true
+
+	start := Entry{Key: makeKey(300)}
+	stop := Entry{Key: makeKey(700)}
+	tree.ScanRange(start, stop, func(e Entry) bool {
+		if e.Key == "" && e.Key < start.Key && e.Key > stop.Key {
+			t.Errorf("scan range, issue with key: %v", e.Key)
+			return false
+		}
+		if printInfo {
+			log.Printf("key: %s\n", e.Key)
+		}
+		return true
+	})
+
+	tree.Close()
 }
 
 // signature: ToList() (*list.List, error)
