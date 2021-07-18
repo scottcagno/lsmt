@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 )
@@ -19,52 +18,35 @@ const (
 
 var ErrNotFound = errors.New("not found")
 
-type entry struct {
-	typ byte
-	key string
-	val string
-}
-
-func readEntry(r io.Reader) (byte, string, []byte, error) {
-	header := make([]byte, 13)
-
+func readEntry(r io.Reader) (string, []byte, error) {
+	header := make([]byte, 12)
 	_, err := r.Read(header)
 	if err != nil {
 		if err == io.EOF {
-			return typeErr, "", nil, err
+			return "", nil, err
 		}
-		return typeErr, "", nil, fmt.Errorf("[readEntry] reading header: %v", err)
+		return "", nil, fmt.Errorf("[readEntry] reading header: %v", err)
 	}
 
-	typ := header[0]
-	keylen := binary.LittleEndian.Uint32(header[1:5])
-	vallen := binary.LittleEndian.Uint64(header[5:13])
+	keylen := binary.LittleEndian.Uint32(header[0:4])
+	vallen := binary.LittleEndian.Uint64(header[4:12])
 
 	data := make([]byte, uint64(keylen)+vallen)
 	_, err = r.Read(data)
 	if err != nil {
-		return typeErr, "", nil, fmt.Errorf("[readEntry] reading data: %v", err)
+		return "", nil, fmt.Errorf("[readEntry] reading data: %v", err)
 	}
-
-	return typ, string(data[:keylen]), data[keylen : uint64(keylen)+vallen], nil
+	return string(data[:keylen]), data[keylen : uint64(keylen)+vallen], nil
 }
 
-func writeEntry(w io.Writer, typ byte, key string, val []byte) error {
-
-	// write type
-	_, err := w.Write([]byte{typ})
-	if err != nil {
-		return fmt.Errorf("[writeEntry] writing type: %v", err)
-	}
-
+func writeEntry(w io.Writer, key string, val []byte) error {
 	// write keylen
 	var keylen [4]byte
 	binary.LittleEndian.PutUint32(keylen[:], uint32(len(key)))
-	_, err = w.Write(keylen[:])
+	_, err := w.Write(keylen[:])
 	if err != nil {
 		return fmt.Errorf("[writeEntry] writing key length: %v", err)
 	}
-
 	// write vallen
 	var vallen [8]byte
 	binary.LittleEndian.PutUint64(vallen[:], uint64(len(val)))
@@ -72,28 +54,22 @@ func writeEntry(w io.Writer, typ byte, key string, val []byte) error {
 	if err != nil {
 		return fmt.Errorf("[writeEntry] writing value length: %v", err)
 	}
-
-	log.Printf("keylen: len=%d, val=%v\n", len(keylen), keylen)
-	log.Printf("vallen: len=%d, val=%v\n", len(vallen), vallen)
-
 	// write key data
 	_, err = w.Write([]byte(key))
 	if err != nil {
 		return fmt.Errorf("[writeEntry] writing key data: %v", err)
 	}
-
 	// write val data
 	_, err = w.Write(val)
 	if err != nil {
 		return fmt.Errorf("[writeEntry] writing value data: %v", err)
 	}
-
 	return nil
 }
 
 const filePermissions = 0600 //| os.ModeSticky
 
-func OpenOrCreate(path string) (*os.File, error) {
+func openOrCreate(path string) (*os.File, error) {
 	// sanitize path
 	path, err := filepath.Abs(filepath.Clean(filepath.ToSlash(path)))
 	if err != nil {

@@ -45,12 +45,7 @@ func (m *Memtable) Load() {
 			if err == io.EOF {
 				break
 			}
-			switch e.typ {
-			case typeErr, typeDel:
-				continue
-			case typeAdd, typePut:
-				m.data.Put(e.key, []byte(e.val))
-			}
+			m.data.Put(e.key, []byte(e.val))
 		}
 	}
 }
@@ -138,7 +133,7 @@ func (m *Memtable) Flush() error {
 
 	// create new sstable file
 	filename := fmt.Sprintf("dat-%d.sst", time.Now().Unix())
-	fd, err := OpenOrCreate(filename)
+	fd, err := openOrCreate(filename)
 	if err != nil {
 		return fmt.Errorf("[Memtable.Flush] calling OpenOrCreate: %v", err)
 	}
@@ -147,7 +142,7 @@ func (m *Memtable) Flush() error {
 	// iterate all of the entries in the memtable in order
 	m.data.ScanFront(func(e rbtree.Entry) bool {
 		// write each entry to the sstable file
-		err = writeEntry(fd, typeAdd, e.Key, e.Value)
+		err = writeEntry(fd, e.Key, e.Value)
 		if err != nil {
 			return false
 		}

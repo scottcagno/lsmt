@@ -27,6 +27,11 @@ func main() {
 	errCheck(err)
 }
 
+func testRecord() {
+	rec := lsm.NewRecord("foo", []byte("bar,baz"))
+	log.Printf("record=%s", rec.String())
+}
+
 var (
 	key0 = "testkey-000000"
 	key1 = "testkey-000001"
