@@ -104,6 +104,7 @@ func TestRbTree_Size(t *testing.T) {
 		tree.Put(key, val)
 	}
 	util.AssertLen(t, numBytes, tree.Size())
+	log.Printf("size=%d\n", numBytes)
 	tree.Close()
 }
 
