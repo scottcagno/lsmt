@@ -13,7 +13,7 @@ import (
 type Memtable struct {
 	mu        sync.RWMutex   // lock
 	data      *rbtree.RBTree // memtable sorted index
-	aol       *LogFile       // log file for crashes
+	wal       *LogFile       // log file for crashes
 	threshold int64          // sstable flush threshold
 	size      int64          // size in bytes (used to check if threshold has been met)
 }
@@ -25,7 +25,7 @@ func NewMemtable(path string, dynamicLoad bool) (*Memtable, error) {
 	}
 	m := &Memtable{
 		data: rbtree.NewRBTree(),
-		aol:  l,
+		wal:  l,
 		size: l.size,
 	}
 	if dynamicLoad {
@@ -37,11 +37,11 @@ func NewMemtable(path string, dynamicLoad bool) (*Memtable, error) {
 func (m *Memtable) Load() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	log.Printf("Loading memtable data from AOF/WAL (%s)\n", m.aol.file.Name())
+	log.Printf("Loading memtable data from AOF/WAL (%s)\n", m.wal.file.Name())
 	if m.size > 0 {
 		for {
 			var e entry
-			err := m.aol.ReadEntry(&e)
+			err := m.wal.ReadEntry(&e)
 			if err == io.EOF {
 				break
 			}
@@ -55,7 +55,7 @@ func (m *Memtable) Put(key string, val []byte) error {
 	defer m.mu.Unlock()
 
 	// write put entry to the logile
-	err := m.aol.WritePut(key, val)
+	err := m.wal.WritePut(key, val)
 	if err != nil {
 		return fmt.Errorf("[Memtable.Put] calling WritePut: %v", err)
 	}
@@ -77,8 +77,7 @@ func (m *Memtable) Has(key string) bool {
 	defer m.mu.RUnlock()
 
 	// check the memtable
-	ok, _ := m.data.Has(key)
-	return ok
+	return m.data.Has(key)
 }
 
 func (m *Memtable) Get(key string) ([]byte, error) {
@@ -98,7 +97,7 @@ func (m *Memtable) Del(key string) error {
 	defer m.mu.Unlock()
 
 	// write del entry to the logfile
-	err := m.aol.WriteDel(key)
+	err := m.wal.WriteDel(key)
 	if err != nil {
 		return fmt.Errorf("[Memtable.Del] calling WriteDel: %v", err)
 	}
@@ -140,9 +139,9 @@ func (m *Memtable) Flush() error {
 	defer fd.Close()
 
 	// iterate all of the entries in the memtable in order
-	m.data.ScanFront(func(e rbtree.Entry) bool {
+	m.data.ScanFront(func(key string, value []byte) bool {
 		// write each entry to the sstable file
-		err = writeEntry(fd, e.Key, e.Value)
+		err = writeEntry(fd, key, value)
 		if err != nil {
 			return false
 		}
@@ -162,11 +161,11 @@ func (m *Memtable) Flush() error {
 	m.data = rbtree.NewRBTree()
 
 	// get the log file name
-	path := m.aol.file.Name()
+	path := m.wal.file.Name()
 
 	// close and remove the existing log file
 	// we don't need this one anymore
-	err = m.aol.Close()
+	err = m.wal.Close()
 	if err != nil {
 		return fmt.Errorf("[Memtable.Flush] calling fd.Close: %v", err)
 	}
@@ -180,7 +179,7 @@ func (m *Memtable) Flush() error {
 	if err != nil {
 		return fmt.Errorf("[Memtable.Flush] calling OpenLogFile: %v", err)
 	}
-	m.aol = l
+	m.wal = l
 
 	// reset the memtable size
 	m.size = 0
@@ -190,7 +189,7 @@ func (m *Memtable) Flush() error {
 func (m *Memtable) Close() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	err := m.aol.Close()
+	err := m.wal.Close()
 	if err != nil {
 		return fmt.Errorf("[Memtable.Close] calling fd.Close: %v", err)
 	}
