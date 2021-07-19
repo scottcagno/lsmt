@@ -14,7 +14,6 @@ const (
 
 func TestNewRBTree(t *testing.T) {
 	var tree *RBTree
-	util.AssertNil(t, tree)
 	tree = NewRBTree()
 	util.AssertNotNil(t, tree)
 	tree.Close()
@@ -28,7 +27,7 @@ func TestRbTree_Has(t *testing.T) {
 		tree.Put(makeKey(i), makeVal(i))
 	}
 	for i := 0; i < n*thousand; i++ {
-		ok, _ := tree.Has(makeKey(i))
+		ok := tree.Has(makeKey(i))
 		if !ok { // existing=updated
 			t.Errorf("has: %v", ok)
 		}
@@ -108,33 +107,33 @@ func TestRbTree_Size(t *testing.T) {
 	tree.Close()
 }
 
-// signature: Min() (Entry, bool)
+// signature: Min() (string, []byte, bool)
 func TestRbTree_Min(t *testing.T) {
 	tree := NewRBTree()
 	for i := 0; i < n*thousand; i++ {
 		tree.Put(makeKey(i), makeVal(i))
 	}
 	util.AssertLen(t, n*thousand, tree.Len())
-	e, ok := tree.Min()
+	k, _, ok := tree.Min()
 	if !ok {
 		t.Errorf("min: %v", tree)
 	}
-	util.AssertEqual(t, makeKey(0), e.Key)
+	util.AssertEqual(t, makeKey(0), k)
 	tree.Close()
 }
 
-// signature: Max() (Entry, bool)
+// signature: Max() (string, []byte, bool)
 func TestRbTree_Max(t *testing.T) {
 	tree := NewRBTree()
 	for i := 0; i < n*thousand; i++ {
 		tree.Put(makeKey(i), makeVal(i))
 	}
 	util.AssertLen(t, n*thousand, tree.Len())
-	e, ok := tree.Max()
+	k, _, ok := tree.Max()
 	if !ok {
 		t.Errorf("min: %v", tree)
 	}
-	util.AssertEqual(t, makeKey(n*thousand-1), e.Key)
+	util.AssertEqual(t, makeKey(n*thousand-1), k)
 	tree.Close()
 }
 
@@ -149,13 +148,13 @@ func TestRbTree_ScanFront(t *testing.T) {
 	printInfo := true
 
 	// do scan front
-	tree.ScanFront(func(e Entry) bool {
-		if e.Key == "" {
-			t.Errorf("scan front, issue with key: %v", e.Key)
+	tree.ScanFront(func(key string, value []byte) bool {
+		if key == "" {
+			t.Errorf("scan front, issue with key: %v", key)
 			return false
 		}
 		if printInfo {
-			log.Printf("key: %s\n", e.Key)
+			log.Printf("key: %s\n", key)
 		}
 		return true
 	})
@@ -173,13 +172,13 @@ func TestRbTree_ScanBack(t *testing.T) {
 
 	printInfo := true
 
-	tree.ScanBack(func(e Entry) bool {
-		if e.Key == "" {
-			t.Errorf("scan back, issue with key: %v", e.Key)
+	tree.ScanBack(func(key string, value []byte) bool {
+		if key == "" {
+			t.Errorf("scan back, issue with key: %v", key)
 			return false
 		}
 		if printInfo {
-			log.Printf("key: %s\n", e.Key)
+			log.Printf("key: %s\n", key)
 		}
 		return true
 	})
@@ -197,15 +196,14 @@ func TestRbTree_ScanRange(t *testing.T) {
 
 	printInfo := true
 
-	start := Entry{Key: makeKey(300)}
-	stop := Entry{Key: makeKey(700)}
-	tree.ScanRange(start, stop, func(e Entry) bool {
-		if e.Key == "" && e.Key < start.Key && e.Key > stop.Key {
-			t.Errorf("scan range, issue with key: %v", e.Key)
+	start, stop := makeKey(300), makeKey(700)
+	tree.ScanRange(start, stop, func(key string, value []byte) bool {
+		if key == "" && key < start && key > stop {
+			t.Errorf("scan range, issue with key: %v", key)
 			return false
 		}
 		if printInfo {
-			log.Printf("key: %s\n", e.Key)
+			log.Printf("key: %s\n", key)
 		}
 		return true
 	})

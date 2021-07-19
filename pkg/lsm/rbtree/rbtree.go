@@ -6,43 +6,39 @@ import (
 	"strings"
 )
 
-// Entry represents a key value pair for the ordered map.
+// entry represents a key value pair for the ordered map.
 // If the user decides to change any of this, take care
 // to ensure you implement the Item interface properly in
 // order to keep everything in working order.
-type Entry struct {
-	Key   string
-	Value []byte
+type entry struct {
+	key   string
+	value []byte
 }
 
-func (e *Entry) Compare(that Entry) int {
-	if len(e.Key) < len(that.Key) {
+func (e entry) String() string {
+	return fmt.Sprintf("entry.key=%q, entry.value=%q\n", e.key, e.value)
+}
+
+var empty = *new(entry)
+
+func isempty(e entry) bool {
+	return e.key == ""
+}
+
+func compare(this, that entry) int {
+	if len(this.key) < len(that.key) {
 		return -1
 	}
-	if len(e.Key) > len(that.Key) {
+	if len(this.key) > len(that.key) {
 		return +1
 	}
-	if e.Key < that.Key {
+	if this.key < that.key {
 		return -1
 	}
-	if e.Key > that.Key {
+	if this.key > that.key {
 		return 1
 	}
 	return 0
-}
-
-func (e Entry) String() string {
-	return fmt.Sprintf("Entry.Key=%q, Entry.Value=%q\n", e.Key, e.Value)
-}
-
-var empty = *new(Entry)
-
-func isempty(e Entry) bool {
-	return e.Key == ""
-}
-
-func compare(this, that Entry) int {
-	return this.Compare(that)
 }
 
 const (
@@ -55,7 +51,7 @@ type rbNode struct {
 	right  *rbNode
 	parent *rbNode
 	color  uint
-	entry  Entry
+	entry  entry
 }
 
 type RBTree = rbTree
@@ -88,30 +84,19 @@ func newRBTree() *rbTree {
 	}
 }
 
-func (t *rbTree) Has(key string) (bool, int64) {
-	ret, ok := t.GetEntry(Entry{Key: key})
-	return ok, int64(len(ret.Value))
+func (t *rbTree) Has(key string) bool {
+	_, ok := t.get(key)
+	return ok
 }
 
-func (t *rbTree) Put(key string, val []byte) ([]byte, bool) {
-	ret, ok := t.PutEntry(Entry{Key: key, Value: val})
-	return ret.Value, ok
+func (t *rbTree) Put(key string, value []byte) ([]byte, bool) {
+	return t.put(key, value)
 }
 
-func (t *rbTree) Get(key string) ([]byte, bool) {
-	ret, ok := t.GetEntry(Entry{Key: key})
-	return ret.Value, ok
-}
-
-func (t *rbTree) Del(key string) ([]byte, bool) {
-	siz := t.count
-	ret := t.DelEntry(Entry{Key: key})
-	return ret.Value, siz == t.count+1
-}
-
-func (t *rbTree) PutEntry(entry Entry) (Entry, bool) {
-	if isempty(entry) {
-		return empty, false
+func (t *rbTree) put(key string, value []byte) ([]byte, bool) {
+	e := entry{key: key, value: value}
+	if isempty(e) {
+		return nil, false
 	}
 	// insert returns the node inserted
 	// and if the node returned already
@@ -121,37 +106,48 @@ func (t *rbTree) PutEntry(entry Entry) (Entry, bool) {
 		right:  t.NIL,
 		parent: t.NIL,
 		color:  RED,
-		entry:  entry,
+		entry:  e,
 	})
-	return ret.entry, ok
+	return ret.entry.value, ok
 }
 
-func (t *rbTree) GetEntry(entry Entry) (Entry, bool) {
-	if isempty(entry) {
-		return empty, false
+func (t *rbTree) Get(key string) ([]byte, bool) {
+	return t.get(key)
+}
+
+func (t *rbTree) get(key string) ([]byte, bool) {
+	e := entry{key: key}
+	if isempty(e) {
+		return nil, false
 	}
 	ret := t.search(&rbNode{
 		left:   t.NIL,
 		right:  t.NIL,
 		parent: t.NIL,
 		color:  RED,
-		entry:  entry,
+		entry:  e,
 	})
-	return ret.entry, !isempty(ret.entry)
+	return ret.entry.value, !isempty(ret.entry)
 }
 
-func (t *rbTree) DelEntry(entry Entry) Entry {
-	if isempty(entry) {
-		return *new(Entry)
+func (t *rbTree) Del(key string) ([]byte, bool) {
+	return t.del(key)
+}
+
+func (t *rbTree) del(key string) ([]byte, bool) {
+	e := entry{key: key}
+	if isempty(e) {
+		return nil, false
 	}
+	cnt := t.count
 	ret := t.delete(&rbNode{
 		left:   t.NIL,
 		right:  t.NIL,
 		parent: t.NIL,
 		color:  RED,
-		entry:  entry,
+		entry:  e,
 	})
-	return ret.entry
+	return ret.entry.value, cnt == t.count+1
 }
 
 func (t *rbTree) Len() int {
@@ -163,23 +159,23 @@ func (t *rbTree) Size() int64 {
 	return t.size
 }
 
-func (t *rbTree) Min() (Entry, bool) {
+func (t *rbTree) Min() (string, []byte, bool) {
 	x := t.min(t.root)
 	if x == t.NIL {
-		return *new(Entry), false
+		return "", nil, false
 	}
-	return x.entry, true
+	return x.entry.key, x.entry.value, true
 }
 
-func (t *rbTree) Max() (Entry, bool) {
+func (t *rbTree) Max() (string, []byte, bool) {
 	x := t.max(t.root)
 	if x == t.NIL {
-		return *new(Entry), false
+		return "", nil, false
 	}
-	return x.entry, true
+	return x.entry.key, x.entry.value, true
 }
 
-type Iterator func(entry Entry) bool
+type Iterator func(key string, value []byte) bool
 
 func (t *rbTree) ScanFront(iter Iterator) {
 	t.ascend(t.root, t.min(t.root).entry, iter)
@@ -189,16 +185,8 @@ func (t *rbTree) ScanBack(iter Iterator) {
 	t.descend(t.root, t.max(t.root).entry, iter)
 }
 
-func (t *rbTree) ScanRange(start, end Entry, iter Iterator) {
-	t.ascendRange(t.root, start, end, iter)
-}
-
-func (t *rbTree) Ascend(entry Entry, iter Iterator) {
-	t.ascend(t.root, entry, iter)
-}
-
-func (t *rbTree) AscendRange(ge, lt Entry, iter Iterator) {
-	t.ascendRange(t.root, ge, lt, iter)
+func (t *rbTree) ScanRange(startKey, endKey string, iter Iterator) {
+	t.ascendRange(t.root, startKey, endKey, iter)
 }
 
 func (t *rbTree) ToList() (*list.List, error) {
@@ -206,8 +194,8 @@ func (t *rbTree) ToList() (*list.List, error) {
 		return nil, fmt.Errorf("Error: there are not enough entrys in the tree\n")
 	}
 	li := list.New()
-	t.ascend(t.root, t.min(t.root).entry, func(entry Entry) bool {
-		li.PushBack(entry)
+	t.ascend(t.root, t.min(t.root).entry, func(key string, value []byte) bool {
+		li.PushBack(entry{key: key, value: value})
 		return true
 	})
 	return li, nil
@@ -215,20 +203,20 @@ func (t *rbTree) ToList() (*list.List, error) {
 
 func (t *rbTree) FromList(li *list.List) error {
 	for e := li.Front(); e != nil; e = e.Next() {
-		entry, ok := e.Value.(Entry)
+		ent, ok := e.Value.(entry)
 		if !ok {
 			return fmt.Errorf("Error: cannot add to tree, element (%T) "+
-				"does not implement the Entry interface\n", e.Value)
+				"does not implement the entry interface\n", ent.value)
 		}
-		t.PutEntry(entry)
+		t.put(ent.key, ent.value)
 	}
 	return nil
 }
 
 func (t *rbTree) String() string {
 	var sb strings.Builder
-	t.ascend(t.root, t.min(t.root).entry, func(entry Entry) bool {
-		sb.WriteString(entry.String())
+	t.ascend(t.root, t.min(t.root).entry, func(key string, value []byte) bool {
+		sb.WriteString(entry{key: key, value: value}.String())
 		return true
 	})
 	return sb.String()
@@ -251,8 +239,8 @@ func (t *rbTree) insert(z *rbNode) (*rbNode, bool) {
 		} else if compare(x.entry, z.entry) == -1 {
 			x = x.right
 		} else {
-			t.size -= int64(len(x.entry.Key) + len(x.entry.Value))
-			t.size += int64(len(z.entry.Key) + len(z.entry.Value))
+			t.size -= int64(len(x.entry.key) + len(x.entry.value))
+			t.size += int64(len(z.entry.key) + len(z.entry.value))
 			// originally we were just returning x
 			// without updating the entry, but if we
 			// want it to have similar behavior to
@@ -276,7 +264,7 @@ func (t *rbTree) insert(z *rbNode) (*rbNode, bool) {
 		y.right = z
 	}
 	t.count++
-	t.size += int64(len(z.entry.Key) + len(z.entry.Value))
+	t.size += int64(len(z.entry.key) + len(z.entry.value))
 	t.insertFixup(z)
 	return z, false
 }
@@ -448,7 +436,7 @@ func (t *rbTree) delete(key *rbNode) *rbNode {
 	if y.color == BLACK {
 		t.deleteFixup(x)
 	}
-	t.size -= int64(len(ret.entry.Key) + len(ret.entry.Value))
+	t.size -= int64(len(ret.entry.key) + len(ret.entry.value))
 	t.count--
 	return ret
 }
@@ -509,7 +497,7 @@ func (t *rbTree) deleteFixup(x *rbNode) {
 	x.color = BLACK
 }
 
-func (t *rbTree) ascend(x *rbNode, entry Entry, iter Iterator) bool {
+func (t *rbTree) ascend(x *rbNode, entry entry, iter Iterator) bool {
 	if x == t.NIL {
 		return true
 	}
@@ -517,18 +505,18 @@ func (t *rbTree) ascend(x *rbNode, entry Entry, iter Iterator) bool {
 		if !t.ascend(x.left, entry, iter) {
 			return false
 		}
-		if !iter(x.entry) {
+		if !iter(x.entry.key, x.entry.value) {
 			return false
 		}
 	}
 	return t.ascend(x.right, entry, iter)
 }
 
-func (t *rbTree) Descend(pivot Entry, iter Iterator) {
+func (t *rbTree) Descend(pivot entry, iter Iterator) {
 	t.descend(t.root, pivot, iter)
 }
 
-func (t *rbTree) descend(x *rbNode, pivot Entry, iter Iterator) bool {
+func (t *rbTree) descend(x *rbNode, pivot entry, iter Iterator) bool {
 	if x == t.NIL {
 		return true
 	}
@@ -536,27 +524,27 @@ func (t *rbTree) descend(x *rbNode, pivot Entry, iter Iterator) bool {
 		if !t.descend(x.right, pivot, iter) {
 			return false
 		}
-		if !iter(x.entry) {
+		if !iter(x.entry.key, x.entry.value) {
 			return false
 		}
 	}
 	return t.descend(x.left, pivot, iter)
 }
 
-func (t *rbTree) ascendRange(x *rbNode, inf, sup Entry, iter Iterator) bool {
+func (t *rbTree) ascendRange(x *rbNode, inf, sup string, iter Iterator) bool {
 	if x == t.NIL {
 		return true
 	}
-	if !(compare(x.entry, sup) == -1) {
+	if !(compare(x.entry, entry{key: sup}) == -1) {
 		return t.ascendRange(x.left, inf, sup, iter)
 	}
-	if compare(x.entry, inf) == -1 {
+	if compare(x.entry, entry{key: inf}) == -1 {
 		return t.ascendRange(x.right, inf, sup, iter)
 	}
 	if !t.ascendRange(x.left, inf, sup, iter) {
 		return false
 	}
-	if !iter(x.entry) {
+	if !iter(x.entry.key, x.entry.value) {
 		return false
 	}
 	return t.ascendRange(x.right, inf, sup, iter)
