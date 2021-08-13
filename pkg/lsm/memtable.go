@@ -19,14 +19,14 @@ type Memtable struct {
 }
 
 func NewMemtable(path string, dynamicLoad bool) (*Memtable, error) {
-	l, err := OpenLogFile(path)
+	wal, err := OpenLogFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("[NewMemtable] calling OpenLogFile: %v", err)
 	}
 	m := &Memtable{
 		data: rbtree.NewRBTree(),
-		wal:  l,
-		size: l.size,
+		wal:  wal,
+		size: wal.size,
 	}
 	if dynamicLoad {
 		m.Load()
@@ -34,20 +34,39 @@ func NewMemtable(path string, dynamicLoad bool) (*Memtable, error) {
 	return m, nil
 }
 
-func (m *Memtable) Load() {
+func (m *Memtable) Load() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	log.Printf("Loading memtable data from AOF/WAL (%s)\n", m.wal.file.Name())
-	if m.size > 0 {
-		for {
-			var e entry
-			err := m.wal.ReadEntry(&e)
-			if err == io.EOF {
-				break
-			}
-			m.data.Put(e.key, []byte(e.val))
-		}
+
+	_, err := m.wal.file.Seek(0, io.SeekStart)
+	if err != nil {
+		return fmt.Errorf("[Memtable.Load] seek: %v", err)
 	}
+
+	for {
+		record, err := m.wal.ReadRecord()
+		if err != nil && err != io.EOF {
+			return fmt.Errorf("[Memtable.Load] wal.Read: %v", err)
+		}
+		if err == io.EOF {
+			return nil
+		}
+		m.data.Put(record.Key, record.Value)
+	}
+
+	/*
+		if m.size > 0 {
+			for {
+				var e entry
+				err := m.wal.ReadEntry(&e)
+				if err == io.EOF {
+					break
+				}
+				m.data.Put(e.key, []byte(e.val))
+			}
+		}
+	*/
 }
 
 func (m *Memtable) Put(key string, val []byte) error {

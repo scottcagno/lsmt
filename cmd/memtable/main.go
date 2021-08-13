@@ -4,24 +4,15 @@ import (
 	"github.com/scottcagno/lsmt/pkg/lsm"
 	"log"
 	"os"
-	"time"
 )
 
 func main() {
 
-	mem, err := lsm.NewMemtable("cmd/memtable/log/memtable.log", false)
-	errCheck(err)
-	defer mem.Close()
+	mem, err := lsm.NewMemtable("cmd/memtable/log/memtable.log", true)
 
-	testHas(mem)
-
-	time.Sleep(3 * time.Second)
-
-	mem.Load()
-
-	time.Sleep(3 * time.Second)
-
-	testHas(mem)
+	//testPut(mem)
+	//testHas(mem)
+	//testGet(mem)
 
 	err = mem.Close()
 	errCheck(err)

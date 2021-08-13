@@ -1,6 +1,7 @@
 package lsm
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
@@ -39,8 +40,36 @@ func (l *LogFile) Append(data []byte) error {
 	return nil
 }
 
-func (l *LogFile) Read(data []byte) error {
+func (l *LogFile) WriteRecord(record *DataRecord) error {
+	data, err := record.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	_, err = l.file.Write(data)
+	if err != nil {
+		return err
+	}
 	return nil
+}
+
+func (l *LogFile) ReadRecord() (*DataRecord, error) {
+	head := make([]byte, 8)
+	_, err := l.file.Read(head)
+	if err != nil {
+		return nil, err
+	}
+	rlen := binary.LittleEndian.Uint64(head)
+	data := make([]byte, rlen)
+	_, err = l.file.Read(data)
+	if err != nil {
+		return nil, err
+	}
+	record := new(DataRecord)
+	err = record.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+	return record, nil
 }
 
 func (l *LogFile) WriteAdd(key string, value []byte) error {
