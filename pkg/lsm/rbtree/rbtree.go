@@ -2,7 +2,9 @@ package rbtree
 
 import (
 	"container/list"
+	"encoding/binary"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -89,8 +91,18 @@ func (t *rbTree) Has(key string) bool {
 	return ok
 }
 
+func (t *rbTree) HasInt(key int64) bool {
+	_, ok := t.get(IntToKey(key))
+	return ok
+}
+
 func (t *rbTree) Put(key string, value []byte) ([]byte, bool) {
 	return t.put(key, value)
+}
+
+func (t *rbTree) PutInt(key int64, value int64) (int64, bool) {
+	val, ok := t.put(IntToKey(key), IntToVal(value))
+	return ValToInt(val), ok
 }
 
 func (t *rbTree) put(key string, value []byte) ([]byte, bool) {
@@ -115,6 +127,11 @@ func (t *rbTree) Get(key string) ([]byte, bool) {
 	return t.get(key)
 }
 
+func (t *rbTree) GetInt(key int64) (int64, bool) {
+	val, ok := t.get(IntToKey(key))
+	return ValToInt(val), ok
+}
+
 func (t *rbTree) get(key string) ([]byte, bool) {
 	e := entry{key: key}
 	if isempty(e) {
@@ -132,6 +149,11 @@ func (t *rbTree) get(key string) ([]byte, bool) {
 
 func (t *rbTree) Del(key string) ([]byte, bool) {
 	return t.del(key)
+}
+
+func (t *rbTree) DelInt(key int64) (int64, bool) {
+	val, ok := t.del(IntToKey(key))
+	return ValToInt(val), ok
 }
 
 func (t *rbTree) del(key string) ([]byte, bool) {
@@ -548,4 +570,37 @@ func (t *rbTree) ascendRange(x *rbNode, inf, sup string, iter Iterator) bool {
 		return false
 	}
 	return t.ascendRange(x.right, inf, sup, iter)
+}
+
+func IntToKey(key int64) string {
+	return "i" + strconv.FormatInt(key, 10)
+}
+
+func KeyToInt(key string) int64 {
+	if len(key) != 11 || key[0] != 'i' {
+		return -1
+	}
+	ikey, err := strconv.ParseInt(key[1:], 10, 0)
+	if err != nil {
+		return -1
+	}
+	return ikey
+}
+
+func IntToVal(val int64) []byte {
+	buf := make([]byte, 1+binary.MaxVarintLen64)
+	buf[0] = 'i'
+	_ = binary.PutVarint(buf[1:], val)
+	return buf
+}
+
+func ValToInt(val []byte) int64 {
+	if len(val) != 11 || val[0] != 'i' {
+		return -1
+	}
+	ival, n := binary.Varint(val[1:])
+	if ival == 0 && n <= 0 {
+		return -1
+	}
+	return ival
 }

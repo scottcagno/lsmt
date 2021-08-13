@@ -1,12 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"github.com/scottcagno/lsmt/pkg/lsm"
+	"github.com/scottcagno/lsmt/pkg/lsm/rbtree"
 	"log"
 	"os"
 )
 
 func main() {
+
+	testRBTree()
+	return
 
 	mem, err := lsm.NewMemtable("cmd/memtable/log/memtable.log", true)
 
@@ -16,6 +21,28 @@ func main() {
 
 	err = mem.Close()
 	errCheck(err)
+}
+
+func testRBTree() {
+	tree := rbtree.NewRBTree()
+	tree.PutInt(23, 8932)
+	tree.PutInt(32789, 221)
+	tree.PutInt(85, 289)
+	if !tree.HasInt(23) {
+		panic("something happened")
+	}
+	v, _ := tree.GetInt(23)
+	fmt.Printf("getint(23)=%v (%T)\n", v, v)
+	v, _ = tree.GetInt(32789)
+	fmt.Printf("getint(32789)=%v (%T)\n", v, v)
+	v, _ = tree.GetInt(85)
+	fmt.Printf("getint(85)=%v (%T)\n", v, v)
+	tree.DelInt(23)
+	tree.DelInt(32789)
+	tree.DelInt(85)
+	v, _ = tree.GetInt(85)
+	fmt.Printf("getint(85)=%v (%T)\n", v, v)
+	tree.Close()
 }
 
 func testRecord() {

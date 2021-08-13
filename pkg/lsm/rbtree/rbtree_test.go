@@ -36,12 +36,43 @@ func TestRbTree_Has(t *testing.T) {
 	tree.Close()
 }
 
+// signature: HasInt(key int64) (bool, int64)
+func TestRbTree_HasInt(t *testing.T) {
+	tree := NewRBTree()
+	util.AssertLen(t, 0, tree.Len())
+	for i := 0; i < n*thousand; i++ {
+		tree.PutInt(int64(i), int64(i))
+	}
+	for i := 0; i < n*thousand; i++ {
+		ok := tree.HasInt(int64(i))
+		if !ok { // existing=updated
+			t.Errorf("has: %v", ok)
+		}
+	}
+	util.AssertLen(t, n*thousand, tree.Len())
+	tree.Close()
+}
+
 // signature: Put(key string, val []byte) ([]byte, bool)
 func TestRbTree_Put(t *testing.T) {
 	tree := NewRBTree()
 	util.AssertLen(t, 0, tree.Len())
 	for i := 0; i < n*thousand; i++ {
 		_, existing := tree.Put(makeKey(i), makeVal(i))
+		if existing { // existing=updated
+			t.Errorf("putting: %v", existing)
+		}
+	}
+	util.AssertLen(t, n*thousand, tree.Len())
+	tree.Close()
+}
+
+// signature: PutInt(key int64, val int64) (int64, bool)
+func TestRbTree_PutInt(t *testing.T) {
+	tree := NewRBTree()
+	util.AssertLen(t, 0, tree.Len())
+	for i := 0; i < n*thousand; i++ {
+		_, existing := tree.PutInt(int64(i), int64(i))
 		if existing { // existing=updated
 			t.Errorf("putting: %v", existing)
 		}
@@ -67,6 +98,23 @@ func TestRbTree_Get(t *testing.T) {
 	tree.Close()
 }
 
+// signature: GetInt(key int64) (int64, bool)
+func TestRbTree_GetInt(t *testing.T) {
+	tree := NewRBTree()
+	for i := 0; i < n*thousand; i++ {
+		tree.PutInt(int64(i), int64(i))
+	}
+	util.AssertLen(t, n*thousand, tree.Len())
+	for i := 0; i < n*thousand; i++ {
+		val, ok := tree.GetInt(int64(i))
+		if !ok {
+			t.Errorf("getting: %v", ok)
+		}
+		util.AssertEqual(t, int64(i), val)
+	}
+	tree.Close()
+}
+
 // signature: Del(key string) ([]byte, bool)
 func TestRbTree_Del(t *testing.T) {
 	tree := NewRBTree()
@@ -76,6 +124,23 @@ func TestRbTree_Del(t *testing.T) {
 	util.AssertLen(t, n*thousand, tree.Len())
 	for i := 0; i < n*thousand; i++ {
 		_, ok := tree.Del(makeKey(i))
+		if !ok {
+			t.Errorf("delete: %v", ok)
+		}
+	}
+	util.AssertLen(t, 0, tree.Len())
+	tree.Close()
+}
+
+// signature: DelInt(key int64) (int64, bool)
+func TestRbTree_DelInt(t *testing.T) {
+	tree := NewRBTree()
+	for i := 0; i < n*thousand; i++ {
+		tree.PutInt(int64(i), int64(i))
+	}
+	util.AssertLen(t, n*thousand, tree.Len())
+	for i := 0; i < n*thousand; i++ {
+		_, ok := tree.DelInt(int64(i))
 		if !ok {
 			t.Errorf("delete: %v", ok)
 		}
