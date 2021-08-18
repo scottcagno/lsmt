@@ -1,7 +1,7 @@
-package main
+package lsm
 
-import "github.com/scottcagno/db/lsmt"
-import "fmt"
+//import "github.com/scottcagno/db/lsmt"
+//import "fmt"
 
 func test() {
 
